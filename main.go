@@ -3,11 +3,16 @@ package main
 import (
 	"os"
 	"log"
+	"database/sql"
 	"github.com/lnix1/gator/internal/config"
+	"github.com/lnix1/gator/internal/database"
 )
 
+import _ "github.com/lib/pq"
+
 type state struct {
-	cfg *config.Config
+	db 	*database.Queries
+	cfg 	*config.Config
 }
 
 func main() {
@@ -16,14 +21,25 @@ func main() {
 		log.Fatalf("error reading config: %v", err)
 	}
 
+	db, err := sql.Open("postgres", cfg.DbUrl)
+	if err != nil {
+		log.Fatalf("error opening db connection: %v, err")
+	}
+
+	dbQueries := database.New(db)
+
 	programState := &state{
 		cfg: &cfg,
+		db: dbQueries,
 	}
 
 	cmds := commands{
 		registeredCommands: make(map[string]func(*state, command) error),
 	}
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerReset)
+	cmds.register("users", handlerUsers)
 
 	if len(os.Args) < 2 {
 		log.Fatal("Usage: cli <command> [args...]")

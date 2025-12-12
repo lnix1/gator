@@ -123,7 +123,13 @@ func handlerAddFeed(s *state, cmd command) error {
 	if err != nil {
 		return fmt.Errorf("failed to create feed in db: %w", err)
 	}
-	fmt.Printf("%+v", i)
+	fmt.Printf("%+v \n", i)
+
+	err = handlerFollow(s, command{Name: "follow", Args: []string{feedUrl}})
+	if err != nil {
+		return fmt.Errorf("error registering current user to follow newly added feed: %w", err)
+	}
+
 	return nil
 }
 
@@ -134,7 +140,56 @@ func handlerFeeds(s *state, cmd command) error {
 	}
 
 	for _, feed := range currFeeds {
-		fmt.Printf("%+v", feed)
+		fmt.Printf("%+v \n", feed)
 	}
+	return nil
+}
+
+func handlerFollow(s *state, cmd command) error {
+	currUser, dbCheck := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if dbCheck != nil {
+		return fmt.Errorf("user does not exist: %w", dbCheck)
+	}
+
+	currentUserId := currUser.ID
+	
+	targetFeedId, err := s.db.GetFeedId(context.Background(), cmd.Args[0])
+	if err != nil {
+		return fmt.Errorf("feed url does not exist in db: %w", err)
+	}
+
+	createArgs := database.CreateFeedFollowsParams{
+		CreatedAt:	time.Now(),
+		UpdatedAt: 	time.Now(),
+		UserID: 	currentUserId,
+		FeedID:    	targetFeedId,
+	}
+	feedFollowsRow, err := s.db.CreateFeedFollows(context.Background(), createArgs)
+	if err != nil {
+		return fmt.Errorf("error adding feed_follows instance for user: %w", err)
+	}
+
+	fmt.Printf("User %s now following Feed %s \n", feedFollowsRow.UserName, feedFollowsRow.FeedName)
+	return nil
+}
+
+func handlerFollowing(s *state, cmd command) error {
+	currUser, dbCheck := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if dbCheck != nil {
+		return fmt.Errorf("user does not exist: %w", dbCheck)
+	}
+
+	currentUserId := currUser.ID
+
+	currentUserFeeds, err := s.db.GetFeedFollowsForUser(context.Background(), currentUserId)
+	if err != nil {
+		return fmt.Errorf("error retrieving current user's feed follows: %w", err)
+	}
+
+	fmt.Printf("%s is following these feeds: \n", s.cfg.CurrentUserName)
+	for _, feed := range currentUserFeeds {
+		fmt.Printf(" - %s \n", feed.FeedName)
+	}
+	
 	return nil
 }

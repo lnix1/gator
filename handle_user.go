@@ -96,16 +96,11 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, currUser database.User) error {
 	if len(cmd.Args) < 2 {
 		return fmt.Errorf("Not enough args")
 	}
 	
-	currUser, dbCheck := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if dbCheck != nil {
-		return fmt.Errorf("user does not exist: %w", dbCheck)
-	}
-
 	currentUserId := currUser.ID
 	feedName := cmd.Args[0]
 	feedUrl := cmd.Args[1]
@@ -125,7 +120,7 @@ func handlerAddFeed(s *state, cmd command) error {
 	}
 	fmt.Printf("%+v \n", i)
 
-	err = handlerFollow(s, command{Name: "follow", Args: []string{feedUrl}})
+	err = handlerFollow(s, command{Name: "follow", Args: []string{feedUrl}}, currUser)
 	if err != nil {
 		return fmt.Errorf("error registering current user to follow newly added feed: %w", err)
 	}
@@ -145,12 +140,7 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
-	currUser, dbCheck := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if dbCheck != nil {
-		return fmt.Errorf("user does not exist: %w", dbCheck)
-	}
-
+func handlerFollow(s *state, cmd command, currUser database.User) error {
 	currentUserId := currUser.ID
 	
 	targetFeedId, err := s.db.GetFeedId(context.Background(), cmd.Args[0])
@@ -173,12 +163,7 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
-	currUser, dbCheck := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if dbCheck != nil {
-		return fmt.Errorf("user does not exist: %w", dbCheck)
-	}
-
+func handlerFollowing(s *state, cmd command, currUser database.User) error {
 	currentUserId := currUser.ID
 
 	currentUserFeeds, err := s.db.GetFeedFollowsForUser(context.Background(), currentUserId)
@@ -192,4 +177,38 @@ func handlerFollowing(s *state, cmd command) error {
 	}
 	
 	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, currUser database.User) error {
+	currentUserId := currUser.ID
+	
+	targetFeedId, err := s.db.GetFeedId(context.Background(), cmd.Args[0])
+	if err != nil {
+		return fmt.Errorf("feed url does not exist in db: %w", err)
+	}
+	
+	deleteArgs:= database.RemoveFeedFollowParams{
+		UserID: 	currentUserId,
+		FeedID:		targetFeedId,
+	}
+
+	err = s.db.RemoveFeedFollow(context.Background(), deleteArgs)
+	if err != nil {
+		return fmt.Errorf("error deleting feed_follows instance for user: %w", err)
+	}
+
+	fmt.Printf("User %s has unfollowed Feed %s \n", currUser.Name, cmd.Args[0])
+
+	return nil
+}
+
+func middlewareLoggedIn(handler func(s *state, cmd command, currUser database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		currUser, dbCheck := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+		if dbCheck != nil {
+			return fmt.Errorf("user does not exist: %w", dbCheck)
+		}
+
+		return handler(s, cmd, currUser)
+	}
 }

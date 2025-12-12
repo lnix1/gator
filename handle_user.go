@@ -82,3 +82,59 @@ func handlerUsers(s *state, cmd command) error {
 	}
 	return nil
 }
+
+func handlerAgg(s *state, cmd command) error {
+	//targetUrl := cmd.Args[0]
+	targetUrl := "https://www.wagslane.dev/index.xml"
+	Feed, err := fetchFeed(context.Background(), targetUrl)
+	if err != nil {
+		return fmt.Errorf("Error fetching RSS Feed: %w", err)
+	}
+
+	fmt.Println(*Feed)
+
+	return nil
+}
+
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.Args) < 2 {
+		return fmt.Errorf("Not enough args")
+	}
+	
+	currUser, dbCheck := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if dbCheck != nil {
+		return fmt.Errorf("user does not exist: %w", dbCheck)
+	}
+
+	currentUserId := currUser.ID
+	feedName := cmd.Args[0]
+	feedUrl := cmd.Args[1]
+
+	createArgs := database.CreateFeedParams{
+		ID: uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name: feedName,
+		Url: feedUrl,
+		UserID: currentUserId,
+	}
+
+	i, err := s.db.CreateFeed(context.Background(), createArgs)
+	if err != nil {
+		return fmt.Errorf("failed to create feed in db: %w", err)
+	}
+	fmt.Printf("%+v", i)
+	return nil
+}
+
+func handlerFeeds(s *state, cmd command) error {
+	currFeeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve feeds list: %w", err)
+	}
+
+	for _, feed := range currFeeds {
+		fmt.Printf("%+v", feed)
+	}
+	return nil
+}

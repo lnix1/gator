@@ -30,9 +30,9 @@ Then run the following command:
 ## Commands to use:
 
 - Register a user: ``` gator register <choose a user name> ```
-- Login to a user: ``` gator login <user_name>
-- Define a feed to track: ``` gator addfeed "Feed Name" "https://feedRssUrlExample.com"
-- Subscribe to a few: ``` gator follow "https://feedRssUrlExample.com"
+- Login to a user: ``` gator login <user_name> ```
+- Define a feed to track: ``` gator addfeed "Feed Name" "https://feedRssUrlExample.com" ```
+- Subscribe to a few: ``` gator follow "https://feedRssUrlExample.com" ```
 - List users: ``` gator users ```
 - List Feeds: ``` gator feeds ```
 - Browse Feeds current user follows: ``` gator browse <optional number of feeds to list> ```

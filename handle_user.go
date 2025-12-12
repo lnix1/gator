@@ -267,15 +267,20 @@ func handlerBrowse(s *state, cmd command, currUser database.User) error {
 		numPosts = int32(convertedNum)
 	}
 
-	browseArgs := database.GetPostsForUserParams{UserID: currUser.ID, Column2: numPosts}
+	browseArgs := database.GetPostsForUserParams{UserID: currUser.ID, Limit: numPosts}
 	browseFeeds, err := s.db.GetPostsForUser(context.Background(), browseArgs)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve feeds to browse: %w", err)
 	}
 
-	for _, feed := range browseFeeds {
-		fmt.Printf("Description: %s \n", feed.Description)
-		fmt.Printf("Url: %s \n", feed.Url)
+	fmt.Printf("Found %d posts for user %s:\n", len(browseFeeds), currUser.Name)
+	for _, post := range browseFeeds {
+		fmt.Printf("%s from %s\n", post.PublishedAt, post.FeedName)
+		fmt.Printf("--- %s ---\n", post.Title)
+		fmt.Printf("    %v\n", post.Description)
+		fmt.Printf("Link: %s\n", post.Url)
+		fmt.Println("=====================================")
+		fmt.Println()
 		fmt.Println()
 	}
 	return nil

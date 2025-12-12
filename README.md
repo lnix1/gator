@@ -27,12 +27,25 @@ Then run the following command:
 
 ``` gator register <choose a user name> ```
 
+You will then want to use the commands below to:
+
+1. login to your user
+2. add feeds
+3. start the aggregator
+
+If you add more than one user and want to follow a feed that was added by another user, use the "follow" command to subscribe.
+
 ## Commands to use:
 
 - Register a user: ``` gator register <choose a user name> ```
 - Login to a user: ``` gator login <user_name> ```
 - Define a feed to track: ``` gator addfeed "Feed Name" "https://feedRssUrlExample.com" ```
-- Subscribe to a few: ``` gator follow "https://feedRssUrlExample.com" ```
+- Subscribe to a feed: ``` gator follow "https://feedRssUrlExample.com" ```
+- Unsubscribe to a feed: ``` gator unfollow "https://feedRssUrlExample.com" ```
 - List users: ``` gator users ```
-- List Feeds: ``` gator feeds ```
-- Browse Feeds current user follows: ``` gator browse <optional number of feeds to list> ```
+- List feeds: ``` gator feeds ```
+- List feeds user is following: ``` gator following ```
+- Browse feeds current user follows: ``` gator browse <optional number of feeds to list> ```
+- Start continuously running aggregator: ``` gator agg 1d ```
+	- This will start a continuously running aggregate which will poll a new feed every 1d. You can adjust the "1d" argument to whatever time interval you want (1s, 1m, etc...), but be careful about using to short of a timeframe as you will continually spam the feed URLs until you kill the process.
+	- Kill this process with ctrl+c

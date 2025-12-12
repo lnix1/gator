@@ -6,9 +6,10 @@ import (
 	"database/sql"
 	"github.com/lnix1/gator/internal/config"
 	"github.com/lnix1/gator/internal/database"
+
+	_ "github.com/lib/pq"
 )
 
-import _ "github.com/lib/pq"
 
 type state struct {
 	db 	*database.Queries
@@ -46,6 +47,7 @@ func main() {
 	cmds.register("follow", middlewareLoggedIn(handlerFollow))
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
 	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+	cmds.register("browse", middlewareLoggedIn(handlerBrowse))
 
 	if len(os.Args) < 2 {
 		log.Fatal("Usage: cli <command> [args...]")

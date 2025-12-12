@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 	"context"
+	"strings"
+	"strconv"
 	"github.com/google/uuid"
 	"github.com/lnix1/gator/internal/database"
 )
@@ -84,14 +86,19 @@ func handlerUsers(s *state, cmd command) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	//targetUrl := cmd.Args[0]
-	targetUrl := "https://www.wagslane.dev/index.xml"
-	Feed, err := fetchFeed(context.Background(), targetUrl)
+	timeBetweenRequests, err := time.ParseDuration(cmd.Args[0])
 	if err != nil {
-		return fmt.Errorf("Error fetching RSS Feed: %w", err)
+		return fmt.Errorf("error parsing time duration: %w", err)
 	}
+	fmt.Printf("Collecting feeds every %t \n", timeBetweenRequests)
 
-	fmt.Println(*Feed)
+	ticker := time.NewTicker(timeBetweenRequests)
+	for ; ; <-ticker.C {
+		err := scrapeFeeds(s)
+		if err != nil {
+			return fmt.Errorf("Error scraping a feed: %w", err)
+		}
+	}
 
 	return nil
 }
@@ -211,4 +218,65 @@ func middlewareLoggedIn(handler func(s *state, cmd command, currUser database.Us
 
 		return handler(s, cmd, currUser)
 	}
+}
+
+func scrapeFeeds(s *state) error {
+	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return fmt.Errorf("error getting next feed ID to fetch: %w", err)
+	}
+
+	err = s.db.MarkFeedFetched(context.Background(), nextFeed.ID)
+	if err != nil {
+		return fmt.Errorf("error fetching next feed: %w", err)
+	}
+	
+	feedData, err := fetchFeed(context.Background(), nextFeed.Url)
+	if err != nil {
+		return fmt.Errorf("error parsing feed result: %w", err)
+	}
+
+	fmt.Printf("Updating feed: %s \n", feedData.Channel.Title)
+	for _, item := range feedData.Channel.Item {
+		pubTime, _ := time.Parse(time.RFC1123Z, item.PubDate)
+		postCreateArgs := database.CreatePostParams{
+			Title: 		item.Title,
+			Url:		item.Link,
+			Description: 	item.Description,
+			PublishedAt:	pubTime,
+			FeedID:		nextFeed.ID,
+		}
+		_, err := s.db.CreatePost(context.Background(), postCreateArgs)
+		if err != nil && !strings.Contains(err.Error(), "pq: duplicate key value") {
+			return fmt.Errorf("error creating post in db: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, currUser database.User) error {
+	var numPosts int32
+	if len(cmd.Args) == 0 {
+		numPosts = int32(2)
+	} else {
+		convertedNum, err := strconv.Atoi(cmd.Args[0])
+		if err != nil {
+			return fmt.Errorf("command requires numerical argument or no argument: %w", err)
+		}
+		numPosts = int32(convertedNum)
+	}
+
+	browseArgs := database.GetPostsForUserParams{UserID: currUser.ID, Column2: numPosts}
+	browseFeeds, err := s.db.GetPostsForUser(context.Background(), browseArgs)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve feeds to browse: %w", err)
+	}
+
+	for _, feed := range browseFeeds {
+		fmt.Printf("Description: %s \n", feed.Description)
+		fmt.Printf("Url: %s \n", feed.Url)
+		fmt.Println()
+	}
+	return nil
 }
